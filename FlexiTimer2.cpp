@@ -6,6 +6,8 @@
   Javier Valencia <javiervalencia80@gmail.com>
 
   History:
+    16/Dec/2011 - Added Teensy/Teensy++ support (bperrybap)
+		   note: teensy uses timer4 instead of timer2
     25/April/10 - Based on MsTimer2 V0.5 (from 29/May/09)
 
   This library is free software; you can redistribute it and/or
@@ -44,7 +46,14 @@ void FlexiTimer2::set(unsigned long ms, void (*f)()) {
 void FlexiTimer2::set(unsigned long units, double resolution, void (*f)()) {
 	float prescaler = 0.0;
 	
-#if defined (__AVR_ATmega168__) || defined (__AVR_ATmega48__) || defined (__AVR_ATmega88__) || defined (__AVR_ATmega328P__) || (__AVR_ATmega1280__)
+	if (units == 0)
+		time_units = 1;
+	else
+		time_units = units;
+		
+	func = f;
+	
+#if defined (__AVR_ATmega168__) || defined (__AVR_ATmega48__) || defined (__AVR_ATmega88__) || defined (__AVR_ATmega328P__) || defined (__AVR_ATmega1280__) || defined (__AVR_ATmega2560__) || defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB1286__)
 	TIMSK2 &= ~(1<<TOIE2);
 	TCCR2A &= ~((1<<WGM21) | (1<<WGM20));
 	TCCR2B &= ~(1<<WGM22);
@@ -101,22 +110,48 @@ void FlexiTimer2::set(unsigned long units, double resolution, void (*f)()) {
 		TCCR2 &= ~((1<<CS21) | (1<<CS20));
 		prescaler = 256.0;
 	}
+#elif defined (__AVR_ATmega32U4__)
+	TCCR4B = 0;
+	TCCR4A = 0;
+	TCCR4C = 0;
+	TCCR4D = 0;
+	TCCR4E = 0;
+	if (F_CPU >= 16000000L) {
+		TCCR4B = (1<<CS43) | (1<<PSR4);
+		prescaler = 128.0;
+	} else if (F_CPU >= 8000000L) {
+		TCCR4B = (1<<CS42) | (1<<CS41) | (1<<CS40) | (1<<PSR4);
+		prescaler = 64.0;
+	} else if (F_CPU >= 4000000L) {
+		TCCR4B = (1<<CS42) | (1<<CS41) | (1<<PSR4);
+		prescaler = 32.0;
+	} else if (F_CPU >= 2000000L) {
+		TCCR4B = (1<<CS42) | (1<<CS40) | (1<<PSR4);
+		prescaler = 16.0;
+	} else if (F_CPU >= 1000000L) {
+		TCCR4B = (1<<CS42) | (1<<PSR4);
+		prescaler = 8.0;
+	} else if (F_CPU >= 500000L) {
+		TCCR4B = (1<<CS41) | (1<<CS40) | (1<<PSR4);
+		prescaler = 4.0;
+	} else {
+		TCCR4B = (1<<CS41) | (1<<PSR4);
+		prescaler = 2.0;
+	}
+	tcnt2 = (int)((float)F_CPU * resolution / prescaler) - 1;
+	OCR4C = tcnt2;
+	return;
+#else
+#error Unsupported CPU type
 #endif
 	
 	tcnt2 = 256 - (int)((float)F_CPU * resolution / prescaler);
-	
-	if (units == 0)
-		time_units = 1;
-	else
-		time_units = units;
-		
-	func = f;
 }
 
 void FlexiTimer2::start() {
 	count = 0;
 	overflowing = 0;
-#if defined (__AVR_ATmega168__) || defined (__AVR_ATmega48__) || defined (__AVR_ATmega88__) || defined (__AVR_ATmega328P__) || (__AVR_ATmega1280__)
+#if defined (__AVR_ATmega168__) || defined (__AVR_ATmega48__) || defined (__AVR_ATmega88__) || defined (__AVR_ATmega328P__) || defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB1286__)
 	TCNT2 = tcnt2;
 	TIMSK2 |= (1<<TOIE2);
 #elif defined (__AVR_ATmega128__)
@@ -125,16 +160,22 @@ void FlexiTimer2::start() {
 #elif defined (__AVR_ATmega8__)
 	TCNT2 = tcnt2;
 	TIMSK |= (1<<TOIE2);
+#elif defined (__AVR_ATmega32U4__)
+	TIFR4 = (1<<TOV4);
+	TCNT4 = 0;
+	TIMSK4 = (1<<TOIE4);
 #endif
 }
 
 void FlexiTimer2::stop() {
-#if defined (__AVR_ATmega168__) || defined (__AVR_ATmega48__) || defined (__AVR_ATmega88__) || defined (__AVR_ATmega328P__) || (__AVR_ATmega1280__)
+#if defined (__AVR_ATmega168__) || defined (__AVR_ATmega48__) || defined (__AVR_ATmega88__) || defined (__AVR_ATmega328P__) || defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB1286__)
 	TIMSK2 &= ~(1<<TOIE2);
 #elif defined (__AVR_ATmega128__)
 	TIMSK &= ~(1<<TOIE2);
 #elif defined (__AVR_ATmega8__)
 	TIMSK &= ~(1<<TOIE2);
+#elif defined (__AVR_ATmega32U4__)
+	TIMSK4 = 0;
 #endif
 }
 
@@ -143,19 +184,25 @@ void FlexiTimer2::_overflow() {
 	
 	if (count >= time_units && !overflowing) {
 		overflowing = 1;
-		count = 0;
+		count = count - time_units; // subtract time_uints to catch missed overflows
+					// set to 0 if you don't want this.
 		(*func)();
 		overflowing = 0;
 	}
 }
-
+#if defined (__AVR_ATmega32U4__)
+ISR(TIMER4_OVF_vect) {
+#else
 ISR(TIMER2_OVF_vect) {
-#if defined (__AVR_ATmega168__) || defined (__AVR_ATmega48__) || defined (__AVR_ATmega88__) || defined (__AVR_ATmega328P__) || (__AVR_ATmega1280__)
+#endif
+#if defined (__AVR_ATmega168__) || defined (__AVR_ATmega48__) || defined (__AVR_ATmega88__) || defined (__AVR_ATmega328P__) || defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB1286__)
 	TCNT2 = FlexiTimer2::tcnt2;
 #elif defined (__AVR_ATmega128__)
 	TCNT2 = FlexiTimer2::tcnt2;
 #elif defined (__AVR_ATmega8__)
 	TCNT2 = FlexiTimer2::tcnt2;
+#elif defined (__AVR_ATmega32U4__)
+	// not necessary on 32u4's high speed timer4
 #endif
 	FlexiTimer2::_overflow();
 }
