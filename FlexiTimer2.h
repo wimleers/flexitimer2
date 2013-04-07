@@ -17,6 +17,7 @@ namespace FlexiTimer2 {
 	
 	void set(unsigned long ms, void (*f)());
 	void set(unsigned long units, double resolution, void (*f)());
+	void setFunc(void (*f)());
 	void start();
 	void stop();
 	void _overflow();
