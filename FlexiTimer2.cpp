@@ -148,6 +148,11 @@ void FlexiTimer2::set(unsigned long units, double resolution, void (*f)()) {
 	tcnt2 = 256 - (int)((float)F_CPU * resolution / prescaler);
 }
 
+void FlexiTimer2::setFunc(void (*f)())
+{
+	func = f;
+}
+
 void FlexiTimer2::start() {
 	count = 0;
 	overflowing = 0;
