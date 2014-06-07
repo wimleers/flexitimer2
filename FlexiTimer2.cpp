@@ -6,6 +6,7 @@
   Javier Valencia <javiervalencia80@gmail.com>
 
   History:
+    6/Jun/2014  - Added Teensy 3.0 & 3.1 support
     16/Dec/2011 - Added Teensy/Teensy++ support (bperrybap)
 		   note: teensy uses timer4 instead of timer2
     25/April/10 - Based on MsTimer2 V0.5 (from 29/May/09)
