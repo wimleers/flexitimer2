@@ -1,5 +1,3 @@
-char dummyvar; // to get Arduinoi IDE to include core headers properly
-
 /*
   FlexiTimer2:
   Arduino library to use timer 2 with a configurable resolution.
@@ -18,14 +16,10 @@ For more details on FlexiTimer2 see:
 
 // Switch on LED on and off each half second
 
-#if defined(ARDUINO) && ARDUINO >= 100
+#if ARDUINO >= 100
 const int led_pin = LED_BUILTIN;	// 1.0 built in LED pin var
 #else
-#if defined(CORE_LED0_PIN)
-const int led_pin = CORE_LED0_PIN;	// 3rd party LED pin define
-#else
 const int led_pin = 13;			// default to pin 13
-#endif
 #endif
 
 void flash()
