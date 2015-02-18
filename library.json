@@ -1,0 +1,24 @@
+{
+  "name": "FlexiTimer2",
+  "keywords": "timer, callback",
+  "description": "Arduino library to use timer 2 with a configurable resolution. Based on MsTimer2 by Javier Valencia. Written for the project associated with the \"Mobile & Pervasive Computing\" course at Hasselt University in Belgium.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PaulStoffregen/FlexiTimer2.git"
+  },
+  "authors": [{
+    "name": "Wim Leers",
+    "url": "http://wimleers.com/"
+  }, {
+    "name": "Paul Stoffregen",
+    "url": "https://www.pjrc.com/about/",
+    "maintainer": true
+  }],
+  "frameworks": [
+    "arduino"
+  ],
+  "platforms": [
+    "atmelavr",
+    "teensy"
+  ]
+}
