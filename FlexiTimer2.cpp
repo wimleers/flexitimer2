@@ -6,6 +6,7 @@
   Javier Valencia <javiervalencia80@gmail.com>
 
   History:
+    6/Jun/2014  - Added Teensy 3.0 & 3.1 support
     16/Dec/2011 - Added Teensy/Teensy++ support (bperrybap)
 		   note: teensy uses timer4 instead of timer2
     25/April/10 - Based on MsTimer2 V0.5 (from 29/May/09)
@@ -32,6 +33,9 @@ void (*FlexiTimer2::func)();
 volatile unsigned long FlexiTimer2::count;
 volatile char FlexiTimer2::overflowing;
 volatile unsigned int FlexiTimer2::tcnt2;
+#if defined(__arm__) && defined(TEENSYDUINO)
+static IntervalTimer itimer;
+#endif
 
 void FlexiTimer2::set(unsigned long ms, void (*f)()) {
     FlexiTimer2::set(ms, 0.001, f);
@@ -141,6 +145,11 @@ void FlexiTimer2::set(unsigned long units, double resolution, void (*f)()) {
 	tcnt2 = (int)((float)F_CPU * resolution / prescaler) - 1;
 	OCR4C = tcnt2;
 	return;
+#elif defined(__arm__) && defined(TEENSYDUINO)
+	// TODO: should this emulate the limitations and numerical
+	// range bugs from the versions above?
+	tcnt2 = resolution * 1000000.0;
+	return;
 #else
 #error Unsupported CPU type
 #endif
@@ -164,6 +173,8 @@ void FlexiTimer2::start() {
 	TIFR4 = (1<<TOV4);
 	TCNT4 = 0;
 	TIMSK4 = (1<<TOIE4);
+#elif defined(__arm__) && defined(TEENSYDUINO)
+	itimer.begin(FlexiTimer2::_overflow, tcnt2);
 #endif
 }
 
@@ -176,6 +187,8 @@ void FlexiTimer2::stop() {
 	TIMSK &= ~(1<<TOIE2);
 #elif defined (__AVR_ATmega32U4__)
 	TIMSK4 = 0;
+#elif defined(__arm__) && defined(TEENSYDUINO)
+	itimer.end();
 #endif
 }
 
@@ -190,6 +203,8 @@ void FlexiTimer2::_overflow() {
 		overflowing = 0;
 	}
 }
+
+#if defined (__AVR__)
 #if defined (__AVR_ATmega32U4__)
 ISR(TIMER4_OVF_vect) {
 #else
@@ -206,4 +221,4 @@ ISR(TIMER2_OVF_vect) {
 #endif
 	FlexiTimer2::_overflow();
 }
-
+#endif // AVR
